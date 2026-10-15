@@ -8,7 +8,7 @@ A lightweight Windows notification area utility for monitoring connection and ba
 
 - Razer Barracuda X 2.4G
 - ATK X1 V2 8K dongle
-- KZZI K75 Lite 2.4 GHz receiver
+- KZZI K75 Lite 2.4 GHz receiver (only connection status)
 
 ## Run from source
 
