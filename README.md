@@ -29,10 +29,6 @@ python run_tray.py --once
 
 For development diagnostics, use `python run_tray.py --debug`. This enables detailed logging; `python run_tray.py --once --debug` is useful for console-based HID troubleshooting.
 
-The python scripts in the scripts folder are mainly for testing and detecting the devices. It is not used in the main part of the project, it's the record of how I capture the HID interface for devices.
-
-For example, the `scripts/detect_atk_hid.py` was used for detecting the HID interface for ATK x1v2, you can take it as a reference while you want to add new devices or try out the HID interfaces.
-
 ## Build an executable
 
 Install dependencies as above, then run:
@@ -60,6 +56,12 @@ For multiple devices, hovering over the tray icon shows the selected device name
 Device integrations live under `src/drivers/`. Put each model's VID/PID, interface, usage page, usage, and protocol/register details in its driver. The shared `src/hid_device.py` module only matches a driver's `HidDeviceMatch` and manages the generic HID handle. Implement the `DeviceDriver` contract (`key`, `display_name`, `read_connection()`, `read_details()`, and `close()`), then import the driver and add its factory to `_DRIVER_FACTORIES` in `src/registry.py`. `read_details()` may return `None` for battery or charging when a device does not report that value. The monitor keeps failures and polling timers independent per device; the tray creates a status submenu for each registered driver.
 
 The `src` directory is the source root and contains the shared app modules plus `drivers/`. Launch the app through `run_tray.py`; monitoring, status presentation, and tray lifecycle remain device-agnostic.
+
+The python scripts in the scripts folder are mainly for testing and detecting the devices. It is not used in the main part of the project, it's the record of how I capture the HID interface for devices.
+
+For example, the `scripts/detect_atk_hid.py` was used for detecting the HID interface for ATK x1v2, you can take it as a reference while you want to add new devices or try out the HID interfaces.
+
+Some of the devices may be harder to capture the information, like the KZZI K75 Lite. I have to capture the USB traffic by WireShark. So not all the devices can easily be added or tested with python scripts.
 
 ## Tests
 
