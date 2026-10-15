@@ -35,6 +35,8 @@ Install dependencies as above, then run:
 
 The standalone one-file executable is written to `dist/ShowMeTheConnection.exe`; it bundles Python and HIDAPI, so users do not need Python. One-file packaging is convenient to distribute but has a short extraction step at startup and can trigger stricter antivirus scrutiny than a one-directory build. For a visible console during development, use `./build.ps1 -Console`.
 
+Pushing to the `release` branch runs the Windows build and tests, then publishes a GitHub Release with the executable attached. Tags start at `v0.1.0` and increment the patch number on each successful release. The workflow needs repository Actions enabled and permission to write repository contents; its workflow token is granted that permission in the workflow file.
+
 ## Startup and exit
 
 Choose **Start with Windows** in the tray menu to add or remove a per-user `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` entry. The preference is stored in `%APPDATA%\ShowMeTheConnection\settings.json`. Existing settings from `%APPDATA%\BarracudaTray` are read during migration. Right-click the icon and choose **Exit** to stop polling and close HID handles.

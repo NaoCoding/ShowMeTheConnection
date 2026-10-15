@@ -7,7 +7,11 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: ShowMeTheConnection-release
+  cancel-in-progress: false
 
 jobs:
   build-windows:
@@ -17,6 +21,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -36,6 +42,41 @@ jobs:
         shell: pwsh
         run: ./build.ps1
 
+      - name: Choose next version tag
+        id: version
+        shell: pwsh
+        run: |
+          git fetch --tags origin
+          $versions = foreach ($tag in (git tag --list "v*")) {
+            if ($tag -match '^v(?<major>0|[1-9]\d*)\.(?<minor>0|[1-9]\d*)\.(?<patch>0|[1-9]\d*)$') {
+              [pscustomobject]@{
+                Tag = $tag
+                Major = [int]$Matches.major
+                Minor = [int]$Matches.minor
+                Patch = [int]$Matches.patch
+              }
+            }
+          }
+          $pointedAtCommit = git tag --points-at $env:GITHUB_SHA
+          $currentTag = $versions | Where-Object { $pointedAtCommit -contains $_.Tag } |
+            Sort-Object Major, Minor, Patch | Select-Object -Last 1
+          $latest = $versions | Sort-Object Major, Minor, Patch | Select-Object -Last 1
+          if ($null -ne $currentTag) {
+            $tag = $currentTag.Tag
+          } elseif ($null -eq $latest) {
+            $major = 0
+            $minor = 1
+            $patch = 0
+            $tag = "v$major.$minor.$patch"
+          } else {
+            $major = $latest.Major
+            $minor = $latest.Minor
+            $patch = $latest.Patch + 1
+            $tag = "v$major.$minor.$patch"
+          }
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Next release tag: $tag"
+
       - name: Upload executable artifact
         uses: actions/upload-artifact@v4
         with:
@@ -43,3 +84,20 @@ jobs:
           path: dist/ShowMeTheConnection.exe
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag "dist/ShowMeTheConnection.exe" --clobber
+          } else {
+            gh release create $tag `
+              "dist/ShowMeTheConnection.exe" `
+              --target "$env:GITHUB_SHA" `
+              --title "ShowMeTheConnection $tag" `
+              --generate-notes
+          }
