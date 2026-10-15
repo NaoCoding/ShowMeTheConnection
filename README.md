@@ -27,7 +27,7 @@ For development diagnostics, use `python run_tray.py --debug`. This enables deta
 
 The python scripts in the scripts folder are mainly for testing and detecting the devices. It is not used in the main part of the project, it's the record of how I capture the HID interface for devices.
 
-For example, the `src/scripts/detect_atk_hid.py` was used for detecting the HID interface for ATK x1v2, you can take it as a reference while you want to add new devices or try out the HID interfaces.
+For example, the `scripts/detect_atk_hid.py` was used for detecting the HID interface for ATK x1v2, you can take it as a reference while you want to add new devices or try out the HID interfaces.
 
 ## Build an executable
 
