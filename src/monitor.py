@@ -54,7 +54,7 @@ class MonitorState:
 
 class Monitor:
     def __init__(self, device=None, on_change: Callable[[tuple[MonitorState, ...]], None] | None = None,
-                 connection_interval: float = 4.0, battery_interval: float = 30.0,
+                 connection_interval: float = 4.0, battery_interval: float = 60.0,
                  drivers: list[DeviceDriver] | None = None):
         if drivers is not None:
             self.drivers = list(drivers)

@@ -43,7 +43,7 @@ Choose **Start with Windows** in the tray menu to add or remove a per-user `HKCU
 
 ## Behavior and limitations
 
-The app checks device connection about every four seconds and refreshes battery and charging about every 30 seconds. The Barracuda X integration uses only the documented PA reads for registers `20`, `21`, and `2A`, plus the verified Remote Mode toggle. Battery details are cleared after a confirmed disconnect. Two consecutive communication failures produce an Unknown state so a single timeout does not look like a disconnect. Low battery notifications are omitted to keep dependencies and notification behavior simple.
+The app checks device connection about every four seconds and refreshes battery and charging about every 60 seconds. The Barracuda X integration uses only the documented PA reads for registers `20`, `21`, and `2A`, plus the verified Remote Mode toggle. Battery details are cleared after a confirmed disconnect. Transient communication failures keep the last known status visible while the monitor retries. Low battery notifications are omitted to keep dependencies and notification behavior simple.
 
 The tray icon's battery fill is the primary compact indicator; the tooltip and menu provide the exact percentage. The app has not been validated against physical hardware by this project build; use `--once` on a Windows machine with the specified receiver to verify the connection.
 
