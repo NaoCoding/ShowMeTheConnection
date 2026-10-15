@@ -1,10 +1,12 @@
 # ShowMeTheConnection
 
-A lightweight Windows notification area utility for monitoring connection and battery details from supported devices. It runs without a main window. The current built-in integration supports the Razer Barracuda X 2.4 GHz receiver; the driver architecture is designed for adding more devices.
+A lightweight Windows notification area utility for monitoring connection and battery details from supported devices. It runs without a main window. Built-in integrations support the Razer Barracuda X 2.4 GHz receiver and ATK X1 V2 with its 8K dongle.
 
-## Currently supported device
+## Currently supported devices
 
 Razer Barracuda X 2.4, VID `1532`, PID `0550`. The app selects interface 3, vendor usage page `FF00`, usage `0001`. Other Barracuda receiver product IDs are not targeted.
+
+ATK X1 V2 8K dongle, VID `373B`, PID `11D9`. The app selects interface 1, vendor usage page `FF02`, usage `0002`. The connection check reads battery telemetry; the dongle only replies while the mouse is awake. Charging is shown as unknown because the protocol's secondary battery flag is documented as wired state.
 
 ## Run from source
 

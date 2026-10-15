@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from drivers.atk_x1_v2 import ATKX1V2Driver
 from drivers.barracuda_x import BarracudaXDriver
 from drivers.base import DeviceDriver
 
 DriverFactory = Callable[[], DeviceDriver]
-_DRIVER_FACTORIES: list[DriverFactory] = [BarracudaXDriver]
+_DRIVER_FACTORIES: list[DriverFactory] = [BarracudaXDriver, ATKX1V2Driver]
 
 
 def register_driver(factory: DriverFactory) -> None:
