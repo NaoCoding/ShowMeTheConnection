@@ -2,13 +2,13 @@
 
 <img width="309" height="57" alt="image" src="https://github.com/user-attachments/assets/742d28ee-1c02-4e7f-af74-366cd1841a66" />
 
-A lightweight Windows notification area utility for monitoring connection and battery details from supported devices. It runs without a main window. Built-in integrations support the Razer Barracuda X 2.4 GHz receiver and ATK X1 V2 with its 8K dongle.
+A lightweight Windows notification area utility for monitoring connection and battery details from supported devices. It runs without a main window. Built-in integrations support the Razer Barracuda X 2.4 GHz receiver, ATK X1 V2 with its 8K dongle, and KZZI K75 Lite with its 2.4 GHz receiver.
 
 ## Currently supported devices
 
-Razer Barracuda X 2.4, VID `1532`, PID `0550`. The app selects interface 3, vendor usage page `FF00`, usage `0001`. Other Barracuda receiver product IDs are not targeted.
-
-ATK X1 V2 8K dongle, VID `373B`, PID `11D9`. The app selects interface 1, vendor usage page `FF02`, usage `0002`. The connection check reads battery telemetry; the dongle only replies while the mouse is awake. Charging is shown as unknown because the protocol's secondary battery flag is documented as wired state.
+- Razer Barracuda X 2.4G
+- ATK X1 V2 8K dongle
+- KZZI K75 Lite 2.4 GHz receiver
 
 ## Run from source
 
@@ -47,7 +47,7 @@ Choose **Start with Windows** in the tray menu to add or remove a per-user `HKCU
 
 ## Behavior and limitations
 
-The app checks device connection about every four seconds and refreshes battery and charging about every 60 seconds. The Barracuda X integration uses only the documented PA reads for registers `20`, `21`, and `2A`, plus the verified Remote Mode toggle. Battery details are cleared after a confirmed disconnect. Transient communication failures keep the last known status visible while the monitor retries. Low battery notifications are omitted to keep dependencies and notification behavior simple.
+The app checks device connection about every four seconds and refreshes battery and charging about every 60 seconds. The Barracuda X integration uses only the documented PA reads for registers `20`, `21`, and `2A`, plus the verified Remote Mode toggle. The KZZI integration follows the read-only identity, online, and power requests identified in the bundled KZZI driver. Battery details are cleared after a confirmed disconnect. Transient communication failures keep the last known status visible while the monitor retries. Low battery notifications are omitted to keep dependencies and notification behavior simple.
 
 For multiple devices, hovering over the tray icon shows the selected device names and battery percentages. The right-click menu shows a percentage in each device's row and has a **Devices shown on icon** submenu for choosing which devices appear in the icon and tooltip. All registered devices continue to be monitored; this setting only changes the tray summary.
 
@@ -57,11 +57,11 @@ Device integrations live under `src/drivers/`. Put each model's VID/PID, interfa
 
 The `src` directory is the source root and contains the shared app modules plus `drivers/`. Launch the app through `run_tray.py`; monitoring, status presentation, and tray lifecycle remain device-agnostic.
 
-The python scripts in the scripts folder are mainly for testing and detecting the devices. It is not used in the main part of the project, it's the record of how I capture the HID interface for devices.
+The python scripts in the scripts folder are mainly for detecting devices. They are not used by the main project; they record how I capture HID interfaces.
 
-For example, the `scripts/detect_atk_hid.py` was used for detecting the HID interface for ATK x1v2, you can take it as a reference while you want to add new devices or try out the HID interfaces.
+For example, `scripts/detect_atk_hid.py` was used to detect the HID interface for ATK X1 V2 and can be a reference when adding devices or trying HID interfaces.
 
-Some of the devices may be harder to capture the information, like the KZZI K75 Lite. I have to capture the USB traffic by WireShark. So not all the devices can easily be added or tested with python scripts.
+The KZZI K75 Lite took more investigation: I captured USB traffic with Wireshark and used IDA 9.4 with the REA MCP to reverse the official driver. Its read-only receiver identity now matches the K75 Lite profile, and the tray app includes support for it.
 
 ## Tests
 
