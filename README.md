@@ -45,6 +45,12 @@ The app checks headset connection about every four seconds and refreshes battery
 
 The tray icon's battery fill is the primary compact indicator; the tooltip and menu provide the exact percentage. The app has not been validated against physical hardware by this project build; use `--once` on a Windows machine with the specified receiver to verify the connection.
 
+## Adding another device
+
+Device integrations live under `src/barracuda_tray/drivers/`. Put each model's VID/PID, interface, usage page, usage, and protocol/register details in its driver. The shared `hid_device.py` module only matches a driver's `HidDeviceMatch` and manages the generic HID handle. Implement the `DeviceDriver` contract (`key`, `display_name`, `read_connection()`, `read_details()`, and `close()`), then import the driver and add its factory to `_DRIVER_FACTORIES` in `src/barracuda_tray/registry.py`. `read_details()` may return `None` for battery or charging when a device does not report that value. The monitor keeps failures and polling timers independent per device; the tray creates a status submenu for each registered driver.
+
+The `src` directory is the source root; `barracuda_tray` is the importable Python package. Shared monitoring, status presentation, and tray lifecycle remain device-agnostic.
+
 ## Tests
 
 The protocol and monitoring tests use mocked reports and devices and need no headset:

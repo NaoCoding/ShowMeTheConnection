@@ -21,22 +21,50 @@ class TrayApp:
         self.monitor = monitor or Monitor(on_change=self._state_changed)
         self.monitor.on_change = self._state_changed
         self._lock = threading.RLock()
-        self._state = self.monitor.state
+        self._states = self.monitor.states
+        self._state = self._states[0] if self._states else self.monitor.state
         self._stopping = False
         self.icon = pystray.Icon("BarracudaTray", make_icon(self._state), "Razer Barracuda X - Unknown", self._menu())
 
     def _menu(self):
-        return pystray.Menu(
-            MenuItem("Razer Barracuda X", lambda _icon, _item: None, enabled=False),
-            MenuItem(lambda _item: self._status_label(), lambda _icon, _item: None, enabled=False),
-            MenuItem(lambda _item: self._battery_label(), lambda _icon, _item: None, enabled=False),
-            MenuItem(lambda _item: self._charging_label(), lambda _icon, _item: None, enabled=False),
+        items = []
+        for state in self._states:
+            key = state.device_key
+            items.append(MenuItem(
+                state.device_name,
+                pystray.Menu(
+                    MenuItem(lambda _item, device_key=key: self._device_status(device_key),
+                             lambda _icon, _item: None, enabled=False),
+                    MenuItem(lambda _item, device_key=key: self._device_battery(device_key),
+                             lambda _icon, _item: None, enabled=False),
+                    MenuItem(lambda _item, device_key=key: self._device_charging(device_key),
+                             lambda _icon, _item: None, enabled=False),
+                ),
+            ))
+        items.extend((
             pystray.Menu.SEPARATOR,
             MenuItem("Refresh Now", lambda _icon, _item: self.monitor.refresh_now()),
             MenuItem("Start with Windows", self._toggle_startup, checked=lambda _item: self.settings["start_with_windows"]),
             pystray.Menu.SEPARATOR,
             MenuItem("Exit", self._exit),
-        )
+        ))
+        return pystray.Menu(*items)
+
+    def _get_state(self, key):
+        return next((state for state in self._states if state.device_key == key), None)
+
+    def _device_status(self, key):
+        state = self._get_state(key)
+        return f"Status: {state.connection.value}" if state else "Status: Unknown"
+
+    def _device_battery(self, key):
+        state = self._get_state(key)
+        return f"Battery: {state.battery}%" if state and state.battery is not None else "Battery: —"
+
+    def _device_charging(self, key):
+        state = self._get_state(key)
+        value = "Yes" if state and state.charging else "No" if state and state.charging is not None else "Unknown"
+        return f"Charging: {value}"
 
     def _status_label(self):
         return f"Status: {self._state.connection.value}"
@@ -48,22 +76,28 @@ class TrayApp:
         value = "Yes" if self._state.charging else "No" if self._state.charging is not None else "Unknown"
         return f"Charging: {value}"
 
-    def _state_changed(self, state: MonitorState):
+    def _state_changed(self, states: tuple[MonitorState, ...]):
         with self._lock:
+            self._states = tuple(states)
+            connected = next((state for state in states if state.connection == ConnectionState.CONNECTED), None)
+            state = connected or (states[0] if states else MonitorState())
             self._state = state
             connection = state.connection
             if connection == ConnectionState.CONNECTED:
                 battery = f"{state.battery}%" if state.battery is not None else "—%"
                 if state.charging:
-                    tooltip = f"Razer Barracuda X - Charging - {battery}"
+                    tooltip = f"{state.device_name} - Charging - {battery}"
                 else:
-                    tooltip = f"Razer Barracuda X - Connected - Battery: {battery}"
+                    tooltip = f"{state.device_name} - Connected - Battery: {battery}"
             elif connection == ConnectionState.DISCONNECTED:
-                tooltip = "Razer Barracuda X - Disconnected"
+                tooltip = f"{state.device_name} - Disconnected"
             elif connection == ConnectionState.RECEIVER_UNAVAILABLE:
-                tooltip = "Razer Barracuda X - Receiver unavailable"
+                tooltip = f"{state.device_name} - Receiver unavailable"
             else:
-                tooltip = "Razer Barracuda X - Status unknown"
+                tooltip = f"{state.device_name} - Status unknown"
+            if len(states) > 1:
+                online_count = sum(item.connection == ConnectionState.CONNECTED for item in states)
+                tooltip = f"{online_count} of {len(states)} monitored devices connected"
             try:
                 self.icon.icon = make_icon(state)
                 self.icon.title = tooltip[:127]

@@ -1,9 +1,10 @@
 import unittest
 
 from barracuda_tray.protocol import (
-    ProtocolError, REG_BATTERY, REG_CHARGING, REG_CONNECTION,
+    ProtocolError,
     make_read_command, make_remote_mode, parse_register_response,
 )
+from barracuda_tray.drivers.barracuda_x import BarracudaXDriver, REG_BATTERY, REG_CHARGING, REG_CONNECTION
 
 
 def response(register, value, marker=0, major=1, minor=1):
@@ -20,7 +21,7 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(command[:11], bytes((2, 0x80, 8, 0, 0, 0x50, 0x41, 8, 0, 3, 0x20)))
         self.assertEqual(make_remote_mode(True)[11], 1)
         with self.assertRaises(ValueError):
-            make_read_command(0xE1)
+            make_read_command(0x100)
 
     def test_verified_register_values(self):
         connection = bytes.fromhex("02 0E 50 49 08 D9 A3 92 6B 01 04 00 20 01 01 01")
@@ -41,8 +42,9 @@ class ProtocolTests(unittest.TestCase):
             parse_register_response(response(0x20, 1, major=2), REG_CONNECTION)
         with self.assertRaises(ProtocolError):
             parse_register_response(response(0x20, 1), REG_BATTERY)
-        with self.assertRaises(ProtocolError):
-            parse_register_response(response(0x21, 101), REG_BATTERY)
+        value = parse_register_response(response(0x21, 101), REG_BATTERY)
+        with self.assertRaises(ValueError):
+            BarracudaXDriver._validate_value(REG_BATTERY, value)
 
 
 if __name__ == "__main__":

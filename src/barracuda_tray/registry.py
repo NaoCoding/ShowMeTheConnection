@@ -1,0 +1,22 @@
+"""Registry for device integrations; add new driver factories here."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+
+from .drivers.barracuda_x import BarracudaXDriver
+from .drivers.base import DeviceDriver
+
+DriverFactory = Callable[[], DeviceDriver]
+_DRIVER_FACTORIES: list[DriverFactory] = [BarracudaXDriver]
+
+
+def register_driver(factory: DriverFactory) -> None:
+    """Register another supported device driver once during app startup."""
+    if factory not in _DRIVER_FACTORIES:
+        _DRIVER_FACTORIES.append(factory)
+
+
+def create_drivers() -> list[DeviceDriver]:
+    """Create an independent monitor instance for each registered device type."""
+    return [factory() for factory in _DRIVER_FACTORIES]

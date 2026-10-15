@@ -7,8 +7,7 @@ import ctypes
 import logging
 import sys
 
-from .hid_device import DeviceUnavailable, HeadsetDevice
-from .monitor import Monitor
+from .monitor import ConnectionState, Monitor
 
 
 def main() -> int:
@@ -19,21 +18,24 @@ def main() -> int:
     logging.basicConfig(level=logging.DEBUG if args.debug else logging.WARNING,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     if args.once:
-        device = HeadsetDevice()
+        monitor = Monitor()
         try:
-            connected = device.read_connection()
-            print("Razer Barracuda X 2.4")
-            print(f"Connection: {'Connected' if connected else 'Disconnected'}")
-            if connected:
-                battery, charging = device.read_details()
-                print(f"Battery: {battery}%")
-                print(f"Charging: {'Yes' if charging else 'No'}")
-            return 0
-        except (DeviceUnavailable, OSError, TimeoutError, ValueError) as exc:
-            print(f"Unable to read headset: {exc}")
-            return 1
+            monitor.poll_once(force_details=True)
+            states = monitor.states
+            for index, state in enumerate(states):
+                if index:
+                    print()
+                print(state.device_name)
+                print(f"Connection: {state.connection.value}")
+                if state.battery is not None:
+                    print(f"Battery: {state.battery}%")
+                if state.charging is not None:
+                    print(f"Charging: {'Yes' if state.charging else 'No'}")
+            return 1 if any(state.connection in (ConnectionState.UNKNOWN, ConnectionState.RECEIVER_UNAVAILABLE)
+                            for state in states) else 0
         finally:
-            device.close()
+            for driver in monitor.drivers:
+                driver.close()
 
     mutex = None
     kernel32 = None

@@ -1,58 +1,61 @@
-"""HID discovery and serialized request/response communication."""
+"""Generic HID discovery and handle lifecycle; device protocols belong in drivers."""
 
 from __future__ import annotations
 
 import logging
 import threading
-import time
 from dataclasses import dataclass
 
-from .protocol import (
-    REG_BATTERY, REG_CHARGING, REG_CONNECTION, make_read_command,
-    make_remote_mode, parse_register_response,
-)
-
 log = logging.getLogger(__name__)
-VID, PID, INTERFACE, USAGE_PAGE, USAGE = 0x1532, 0x0550, 3, 0xFF00, 0x0001
 
 
 class DeviceUnavailable(OSError):
-    """The expected receiver could not be found or contacted."""
+    """A matching HID interface could not be found or opened."""
 
 
 @dataclass(frozen=True)
-class HeadsetStatus:
-    connected: bool
-    battery: int | None = None
-    charging: bool | None = None
+class HidDeviceMatch:
+    """HID collection identity supplied by a device-specific driver."""
+
+    vendor_id: int
+    product_id: int
+    interface_number: int
+    usage_page: int
+    usage: int
+    display_name: str
 
 
-def find_device(hid_module):
-    for info in hid_module.enumerate(VID, PID):
-        if all((info.get("vendor_id") == VID,
-                info.get("product_id") == PID,
-                info.get("interface_number") == INTERFACE,
-                info.get("usage_page") == USAGE_PAGE,
-                info.get("usage") == USAGE)):
+def find_device(hid_module, match: HidDeviceMatch):
+    """Return the exact HID collection requested by a driver."""
+    for info in hid_module.enumerate(match.vendor_id, match.product_id):
+        if (info.get("vendor_id") == match.vendor_id
+                and info.get("product_id") == match.product_id
+                and info.get("interface_number") == match.interface_number
+                and info.get("usage_page") == match.usage_page
+                and info.get("usage") == match.usage):
             return info
     return None
 
 
-class HeadsetDevice:
-    """One handle with a lock so callers cannot overlap protocol exchanges."""
+class HidDevice:
+    """Owns one generic HID handle. It has no knowledge of reports or registers."""
 
-    def __init__(self, hid_module=None, sleeper=time.sleep):
+    def __init__(self, match: HidDeviceMatch, hid_module=None):
+        self.match = match
         self._hid = hid_module
-        self._sleeper = sleeper
         self._handle = None
         self._lock = threading.RLock()
+
+    @property
+    def is_open(self) -> bool:
+        return self._handle is not None
 
     def _module(self):
         if self._hid is None:
             try:
                 import hid
             except ImportError as exc:
-                raise DeviceUnavailable("Install hidapi to access the receiver") from exc
+                raise DeviceUnavailable("Install hidapi to access the selected device") from exc
             self._hid = hid
         return self._hid
 
@@ -60,10 +63,11 @@ class HeadsetDevice:
         with self._lock:
             if self._handle is not None:
                 return
-            info = find_device(self._module())
+            module = self._module()
+            info = find_device(module, self.match)
             if info is None:
-                raise DeviceUnavailable("Razer Barracuda X receiver unavailable")
-            handle = self._module().device()
+                raise DeviceUnavailable(f"{self.match.display_name} receiver unavailable")
+            handle = module.device()
             try:
                 handle.open_path(info["path"])
                 self._handle = handle
@@ -74,50 +78,15 @@ class HeadsetDevice:
                     pass
                 raise
 
-    def _exchange(self, register: int) -> int:
-        self.open()
-        handle = self._handle
-        handle.write(make_remote_mode(True))
-        # Remote mode acknowledgement is optional; consume it when promptly available.
-        try:
-            handle.read(64, 15)
-        except OSError:
-            log.debug("Remote mode acknowledgement unavailable", exc_info=True)
-        self._sleeper(0.005)
-        handle.write(make_read_command(register))
-        self._sleeper(0.005)
-        deadline = time.monotonic() + 0.25
-        while time.monotonic() < deadline:
-            try:
-                report = handle.read(64, 50)
-            except OSError:
-                raise
-            if not report:
-                self._sleeper(0.005)
-                continue
-            try:
-                return parse_register_response(report, register)
-            except ValueError:
-                # Ignore stale/unrelated reports, but continue briefly for a live reply.
-                log.debug("Ignoring unrelated HID report for 0x%02X", register)
-        raise TimeoutError(f"Timed out reading register 0x{register:02X}")
-
-    def read_register(self, register: int) -> int:
+    def write(self, report: bytes) -> int:
         with self._lock:
-            try:
-                return self._exchange(register)
-            finally:
-                if self._handle is not None:
-                    try:
-                        self._handle.write(make_remote_mode(False))
-                    except OSError:
-                        log.debug("Could not restore local mode", exc_info=True)
+            self.open()
+            return self._handle.write(report)
 
-    def read_connection(self) -> bool:
-        return bool(self.read_register(REG_CONNECTION))
-
-    def read_details(self) -> tuple[int, bool]:
-        return self.read_register(REG_BATTERY), bool(self.read_register(REG_CHARGING))
+    def read(self, size: int, timeout_ms: int):
+        with self._lock:
+            self.open()
+            return self._handle.read(size, timeout_ms)
 
     def close(self) -> None:
         with self._lock:
