@@ -1,5 +1,7 @@
 # ShowMeTheConnection
 
+<img width="309" height="57" alt="image" src="https://github.com/user-attachments/assets/742d28ee-1c02-4e7f-af74-366cd1841a66" />
+
 A lightweight Windows notification area utility for monitoring connection and battery details from supported devices. It runs without a main window. The current built-in integration supports the Razer Barracuda X 2.4 GHz receiver; the driver architecture is designed for adding more devices.
 
 ## Currently supported device
