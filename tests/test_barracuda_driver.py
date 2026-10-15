@@ -1,8 +1,8 @@
 import unittest
 
-from barracuda_tray.drivers.barracuda_x import BarracudaXDriver, RAZER_BARRACUDA_X_MATCH, REG_CONNECTION
-from barracuda_tray.hid_device import HidDevice
-from barracuda_tray.protocol import make_read_command, make_remote_mode
+from drivers.barracuda_x import BarracudaXDriver, RAZER_BARRACUDA_X_MATCH, REG_CONNECTION
+from hid_device import HidDevice
+from protocol import make_read_command, make_remote_mode
 
 SAMPLE = bytes.fromhex("02 0E 50 49 08 D9 A3 92 6B 01 04 00 20 01 01 01")
 

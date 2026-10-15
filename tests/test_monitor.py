@@ -2,8 +2,8 @@ import threading
 import time
 import unittest
 
-from barracuda_tray.hid_device import DeviceUnavailable
-from barracuda_tray.monitor import ConnectionState, Monitor
+from hid_device import DeviceUnavailable
+from monitor import ConnectionState, Monitor
 
 
 class FakeDevice:

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from .drivers.barracuda_x import BarracudaXDriver
-from .drivers.base import DeviceDriver
+from drivers.barracuda_x import BarracudaXDriver
+from drivers.base import DeviceDriver
 
 DriverFactory = Callable[[], DeviceDriver]
 _DRIVER_FACTORIES: list[DriverFactory] = [BarracudaXDriver]

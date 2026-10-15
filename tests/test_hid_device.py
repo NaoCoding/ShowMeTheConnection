@@ -1,6 +1,6 @@
 import unittest
 
-from barracuda_tray.hid_device import DeviceUnavailable, HidDevice, HidDeviceMatch, find_device
+from hid_device import DeviceUnavailable, HidDevice, HidDeviceMatch, find_device
 
 
 class FakeHandle:

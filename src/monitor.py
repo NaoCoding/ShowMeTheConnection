@@ -9,9 +9,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Callable
 
-from .drivers.base import DeviceDriver
-from .hid_device import DeviceUnavailable
-from .registry import create_drivers
+from drivers.base import DeviceDriver
+from hid_device import DeviceUnavailable
+from registry import create_drivers
 
 log = logging.getLogger(__name__)
 
@@ -48,8 +48,8 @@ class MonitorState:
     battery: int | None = None
     charging: bool | None = None
     updated_at: float | None = None
-    device_key: str = "razer-barracuda-x-24"
-    device_name: str = "Razer Barracuda X 2.4"
+    device_key: str = "unknown-device"
+    device_name: str = "Unknown device"
 
 
 class Monitor:

@@ -8,9 +8,9 @@ import threading
 import pystray
 from pystray import MenuItem
 
-from . import config
-from .icons import make_icon
-from .monitor import ConnectionState, Monitor, MonitorState
+import config
+from icons import make_icon
+from monitor import ConnectionState, Monitor, MonitorState
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class TrayApp:
         self._states = self.monitor.states
         self._state = self._states[0] if self._states else self.monitor.state
         self._stopping = False
-        self.icon = pystray.Icon("BarracudaTray", make_icon(self._state), "Razer Barracuda X - Unknown", self._menu())
+        self.icon = pystray.Icon("ShowMeTheConnection", make_icon(self._state), "ShowMeTheConnection - Starting", self._menu())
 
     def _menu(self):
         items = []

@@ -7,17 +7,21 @@ import os
 import sys
 from pathlib import Path
 
-APP_NAME = "Razer Barracuda X Tray"
+APP_NAME = "ShowMeTheConnection"
 
 
 def config_path() -> Path:
     root = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
-    return root / "BarracudaTray" / "settings.json"
+    return root / APP_NAME / "settings.json"
 
 
 def load_settings() -> dict:
     try:
-        data = json.loads(config_path().read_text(encoding="utf-8"))
+        path = config_path()
+        if not path.exists():
+            legacy = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming")) / "BarracudaTray" / "settings.json"
+            path = legacy
+        data = json.loads(path.read_text(encoding="utf-8"))
         return {"start_with_windows": bool(data.get("start_with_windows", False)),
                 "low_battery_threshold": max(0, min(100, int(data.get("low_battery_threshold", 20))))}
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
@@ -36,15 +40,16 @@ def set_startup(enabled: bool) -> None:
     import winreg
     key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE) as key:
+        # Remove the previous product value to avoid launching both old and new builds.
+        for value_name in ("BarracudaTray", "ShowMeTheConnection"):
+            try:
+                winreg.DeleteValue(key, value_name)
+            except FileNotFoundError:
+                pass
         if enabled:
             if getattr(sys, "frozen", False):
                 command = f'"{sys.executable}"'
             else:
                 entry = Path(__file__).resolve().parents[2] / "run_tray.py"
                 command = f'"{sys.executable}" "{entry}"'
-            winreg.SetValueEx(key, "BarracudaTray", 0, winreg.REG_SZ, command)
-        else:
-            try:
-                winreg.DeleteValue(key, "BarracudaTray")
-            except FileNotFoundError:
-                pass
+            winreg.SetValueEx(key, "ShowMeTheConnection", 0, winreg.REG_SZ, command)

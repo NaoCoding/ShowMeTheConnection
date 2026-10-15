@@ -6,8 +6,8 @@ import logging
 import threading
 import time
 
-from ..hid_device import HidDevice, HidDeviceMatch
-from ..protocol import make_read_command, make_remote_mode, parse_register_response
+from hid_device import HidDevice, HidDeviceMatch
+from protocol import make_read_command, make_remote_mode, parse_register_response
 
 log = logging.getLogger(__name__)
 

@@ -1,10 +1,10 @@
 import unittest
 
-from barracuda_tray.protocol import (
+from protocol import (
     ProtocolError,
     make_read_command, make_remote_mode, parse_register_response,
 )
-from barracuda_tray.drivers.barracuda_x import BarracudaXDriver, REG_BATTERY, REG_CHARGING, REG_CONNECTION
+from drivers.barracuda_x import BarracudaXDriver, REG_BATTERY, REG_CHARGING, REG_CONNECTION
 
 
 def response(register, value, marker=0, major=1, minor=1):
