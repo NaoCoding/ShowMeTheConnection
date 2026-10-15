@@ -125,8 +125,9 @@ class Monitor:
                 log.debug("%s poll failed (%d): %s", driver.display_name, failures, exc)
                 if failures >= 2:
                     driver.close()
-                    self._publish(driver, MonitorState(ConnectionState.UNKNOWN, updated_at=time.time(),
-                                                      device_key=driver.key, device_name=driver.display_name))
+                    # Keep the last successful snapshot visible while the device is
+                    # temporarily unreadable. Publishing UNKNOWN here discards the
+                    # useful connection and battery values and makes the tray flicker.
         return self.state
 
     def start(self) -> None:
