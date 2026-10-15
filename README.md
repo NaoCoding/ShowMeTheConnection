@@ -1,5 +1,7 @@
 # ShowMeTheConnection
 
+<img width="309" height="57" alt="image" src="https://github.com/user-attachments/assets/742d28ee-1c02-4e7f-af74-366cd1841a66" />
+
 A lightweight Windows notification area utility for monitoring connection and battery details from supported devices. It runs without a main window. Built-in integrations support the Razer Barracuda X 2.4 GHz receiver and ATK X1 V2 with its 8K dongle.
 
 ## Currently supported devices
