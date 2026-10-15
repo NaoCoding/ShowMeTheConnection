@@ -23,15 +23,20 @@ class TrayApp:
         self._lock = threading.RLock()
         self._states = self.monitor.states
         self._state = self._states[0] if self._states else self.monitor.state
+        saved_icon_devices = self.settings.get("icon_devices")
+        self._icon_devices = (set(saved_icon_devices) if saved_icon_devices is not None
+                              else {state.device_key for state in self._states})
         self._stopping = False
-        self.icon = pystray.Icon("ShowMeTheConnection", make_icon(self._state), "ShowMeTheConnection - Starting", self._menu())
+        visible_states = self._visible_states()
+        self.icon = pystray.Icon("ShowMeTheConnection", make_icon(visible_states),
+                                 self._tray_summary(visible_states), self._menu())
 
     def _menu(self):
         items = []
         for state in self._states:
             key = state.device_key
             items.append(MenuItem(
-                state.device_name,
+                lambda _item, device_key=key: self._device_summary(device_key),
                 pystray.Menu(
                     MenuItem(lambda _item, device_key=key: self._device_status(device_key),
                              lambda _icon, _item: None, enabled=False),
@@ -41,7 +46,21 @@ class TrayApp:
                              lambda _icon, _item: None, enabled=False),
                 ),
             ))
+        visibility_items = []
+        for state in self._states:
+            key = state.device_key
+
+            def toggle_action(device_key):
+                return lambda _icon, _item: self._toggle_icon_device(device_key)
+
+            visibility_items.append(MenuItem(
+                state.device_name,
+                toggle_action(key),
+                checked=lambda _item, device_key=key: device_key in self._icon_devices,
+            ))
+        visibility_menu = pystray.Menu(*visibility_items)
         items.extend((
+            MenuItem("Devices shown on icon", visibility_menu),
             pystray.Menu.SEPARATOR,
             MenuItem("Refresh Now", lambda _icon, _item: self.monitor.refresh_now()),
             MenuItem("Start with Windows", self._toggle_startup, checked=lambda _item: self.settings["start_with_windows"]),
@@ -66,6 +85,66 @@ class TrayApp:
         value = "Yes" if state and state.charging else "No" if state and state.charging is not None else "Unknown"
         return f"Charging: {value}"
 
+    def _device_summary(self, key):
+        state = self._get_state(key)
+        if state is None:
+            return "Unknown device"
+        if state.battery is not None:
+            return f"{state.device_name} — {state.battery}%"
+        return f"{state.device_name} — {state.connection.value}"
+
+    def _visible_states(self):
+        return tuple(state for state in self._states if state.device_key in self._icon_devices)
+
+    def _tray_summary(self, states):
+        if not states:
+            return "No devices selected on tray icon"
+        summaries = []
+        for state in states:
+            if state.battery is not None:
+                summary = f"{state.device_name}: {state.battery}%"
+                if state.charging:
+                    summary += " charging"
+            elif state.connection == ConnectionState.RECEIVER_UNAVAILABLE:
+                summary = f"{state.device_name}: receiver unavailable"
+            elif state.connection == ConnectionState.DISCONNECTED:
+                summary = f"{state.device_name}: disconnected"
+            elif state.connection == ConnectionState.UNKNOWN:
+                summary = f"{state.device_name}: searching"
+            else:
+                summary = f"{state.device_name}: battery pending"
+            summaries.append(summary)
+        return " | ".join(summaries) or "ShowMeTheConnection - Starting"
+
+    def _refresh_icon(self):
+        states = self._visible_states()
+        try:
+            self.icon.icon = make_icon(states)
+            self.icon.title = self._tray_summary(states)[:127]
+            self.icon.update_menu()
+        except (AttributeError, RuntimeError):
+            log.debug("Tray icon is not running yet")
+
+    def _toggle_icon_device(self, key):
+        with self._lock:
+            if key in self._icon_devices:
+                self._icon_devices.remove(key)
+            else:
+                self._icon_devices.add(key)
+            previous = self.settings.get("icon_devices")
+            self.settings["icon_devices"] = sorted(self._icon_devices)
+            try:
+                config.save_settings(self.settings)
+            except OSError as exc:
+                if previous is None:
+                    self._icon_devices = {state.device_key for state in self._states}
+                    self.settings["icon_devices"] = None
+                else:
+                    self._icon_devices = set(previous)
+                    self.settings["icon_devices"] = previous
+                log.warning("Could not save tray icon device selection: %s", exc)
+            self._refresh_icon()
+
     def _status_label(self):
         return f"Status: {self._state.connection.value}"
 
@@ -82,28 +161,7 @@ class TrayApp:
             connected = next((state for state in states if state.connection == ConnectionState.CONNECTED), None)
             state = connected or (states[0] if states else MonitorState())
             self._state = state
-            connection = state.connection
-            if connection == ConnectionState.CONNECTED:
-                battery = f"{state.battery}%" if state.battery is not None else "—%"
-                if state.charging:
-                    tooltip = f"{state.device_name} - Charging - {battery}"
-                else:
-                    tooltip = f"{state.device_name} - Connected - Battery: {battery}"
-            elif connection == ConnectionState.DISCONNECTED:
-                tooltip = f"{state.device_name} - Disconnected"
-            elif connection == ConnectionState.RECEIVER_UNAVAILABLE:
-                tooltip = f"{state.device_name} - Receiver unavailable"
-            else:
-                tooltip = f"{state.device_name} - Status unknown"
-            if len(states) > 1:
-                online_count = sum(item.connection == ConnectionState.CONNECTED for item in states)
-                tooltip = f"{online_count} of {len(states)} monitored devices connected"
-            try:
-                self.icon.icon = make_icon(state)
-                self.icon.title = tooltip[:127]
-                self.icon.update_menu()
-            except (AttributeError, RuntimeError):
-                log.debug("Tray icon is not running yet")
+            self._refresh_icon()
 
     def _toggle_startup(self, _icon=None, _item=None):
         try:

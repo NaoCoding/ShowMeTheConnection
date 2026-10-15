@@ -51,7 +51,7 @@ Choose **Start with Windows** in the tray menu to add or remove a per-user `HKCU
 
 The app checks device connection about every four seconds and refreshes battery and charging about every 60 seconds. The Barracuda X integration uses only the documented PA reads for registers `20`, `21`, and `2A`, plus the verified Remote Mode toggle. Battery details are cleared after a confirmed disconnect. Transient communication failures keep the last known status visible while the monitor retries. Low battery notifications are omitted to keep dependencies and notification behavior simple.
 
-The tray icon's battery fill is the primary compact indicator; the tooltip and menu provide the exact percentage. The app has not been validated against physical hardware by this project build; use `--once` on a Windows machine with the specified receiver to verify the connection.
+For multiple devices, hovering over the tray icon shows the selected device names and battery percentages. The right-click menu shows a percentage in each device's row and has a **Devices shown on icon** submenu for choosing which devices appear in the icon and tooltip. All registered devices continue to be monitored; this setting only changes the tray summary.
 
 ## Adding another device
 

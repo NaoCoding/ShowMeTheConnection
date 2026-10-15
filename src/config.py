@@ -22,10 +22,14 @@ def load_settings() -> dict:
             legacy = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming")) / "BarracudaTray" / "settings.json"
             path = legacy
         data = json.loads(path.read_text(encoding="utf-8"))
+        icon_devices = data.get("icon_devices")
+        if icon_devices is not None:
+            icon_devices = [key for key in icon_devices if isinstance(key, str)] if isinstance(icon_devices, list) else []
         return {"start_with_windows": bool(data.get("start_with_windows", False)),
-                "low_battery_threshold": max(0, min(100, int(data.get("low_battery_threshold", 20))))}
+                "low_battery_threshold": max(0, min(100, int(data.get("low_battery_threshold", 20)))),
+                "icon_devices": icon_devices}
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
-        return {"start_with_windows": False, "low_battery_threshold": 20}
+        return {"start_with_windows": False, "low_battery_threshold": 20, "icon_devices": None}
 
 
 def save_settings(settings: dict) -> None:
