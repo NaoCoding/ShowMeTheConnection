@@ -46,13 +46,15 @@ class MonitorTests(unittest.TestCase):
         state = monitor.poll_once()
         self.assertEqual((state.connection, state.battery), (ConnectionState.CONNECTED, 52))
 
-    def test_failure_becomes_unknown_after_repeated_failure(self):
+    def test_repeated_failures_preserve_last_successful_state(self):
         device = FakeDevice()
         monitor = Monitor(device)
-        monitor.poll_once(force_details=True)
+        successful_state = monitor.poll_once(force_details=True)
         device.fail = True
         self.assertEqual(monitor.poll_once().connection, ConnectionState.CONNECTED)
-        self.assertEqual(monitor.poll_once().connection, ConnectionState.UNKNOWN)
+        failed_state = monitor.poll_once()
+        self.assertEqual(failed_state, successful_state)
+        self.assertGreaterEqual(device.closed, 1)
 
     def test_unavailable_receiver_and_worker_shutdown(self):
         class Missing(FakeDevice):
