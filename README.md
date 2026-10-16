@@ -21,7 +21,7 @@ python -m pip install -r requirements.txt
 python run_tray.py
 ```
 
-The tray menu has informational status entries, **Drivers monitored**, **Devices shown on icon**, **Refresh Now**, **Start with Windows**, and **Exit**. Use **Drivers monitored** to enable or disable tracking for each supported device. Disabled drivers are not polled, and the selection is saved in the user settings. A one-shot hardware check prints the current state:
+The tray menu has informational status entries, **Drivers monitored**, **Devices shown on icon**, **Refresh Now**, **Start with Windows**, and **Exit**. Use **Drivers monitored** to enable or disable tracking for each supported device. Disabled drivers are not polled and disappear from the status rows, but remain in **Drivers monitored** so they can be re-enabled. The selection is saved in the user settings. A one-shot hardware check prints the current state:
 
 ```powershell
 python run_tray.py --once

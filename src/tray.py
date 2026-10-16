@@ -41,6 +41,8 @@ class TrayApp:
         items = []
         for state in self._states:
             key = state.device_key
+            if not self.monitor.is_driver_enabled(key):
+                continue
             items.append(MenuItem(
                 lambda _item, device_key=key: self._device_summary(device_key),
                 pystray.Menu(
@@ -143,7 +145,7 @@ class TrayApp:
         try:
             self.icon.icon = make_icon(states)
             self.icon.title = self._tray_summary(states)[:127]
-            self.icon.update_menu()
+            self.icon.menu = self._menu()
         except (AttributeError, RuntimeError):
             log.debug("Tray icon is not running yet")
 
