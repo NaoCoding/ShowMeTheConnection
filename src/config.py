@@ -25,11 +25,15 @@ def load_settings() -> dict:
         icon_devices = data.get("icon_devices")
         if icon_devices is not None:
             icon_devices = [key for key in icon_devices if isinstance(key, str)] if isinstance(icon_devices, list) else []
+        disabled_drivers = data.get("disabled_drivers", [])
+        disabled_drivers = ([key for key in disabled_drivers if isinstance(key, str)]
+                            if isinstance(disabled_drivers, list) else [])
         return {"start_with_windows": bool(data.get("start_with_windows", False)),
                 "low_battery_threshold": max(0, min(100, int(data.get("low_battery_threshold", 20)))),
-                "icon_devices": icon_devices}
+                "icon_devices": icon_devices, "disabled_drivers": disabled_drivers}
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
-        return {"start_with_windows": False, "low_battery_threshold": 20, "icon_devices": None}
+        return {"start_with_windows": False, "low_battery_threshold": 20, "icon_devices": None,
+                "disabled_drivers": []}
 
 
 def save_settings(settings: dict) -> None:

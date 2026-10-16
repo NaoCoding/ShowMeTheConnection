@@ -40,6 +40,7 @@ class ConnectionState(str, Enum):
     CONNECTED = "Connected"
     DISCONNECTED = "Disconnected"
     RECEIVER_UNAVAILABLE = "Receiver unavailable"
+    DISABLED = "Disabled"
 
 
 @dataclass(frozen=True)
@@ -55,7 +56,7 @@ class MonitorState:
 class Monitor:
     def __init__(self, device=None, on_change: Callable[[tuple[MonitorState, ...]], None] | None = None,
                  connection_interval: float = 4.0, battery_interval: float = 60.0,
-                 drivers: list[DeviceDriver] | None = None):
+                 drivers: list[DeviceDriver] | None = None, disabled_drivers: list[str] | None = None):
         if drivers is not None:
             self.drivers = list(drivers)
         elif device is not None:
@@ -68,6 +69,13 @@ class Monitor:
             raise ValueError("Each registered device driver must have a unique key")
         self._states = {driver.key: MonitorState(device_key=driver.key, device_name=driver.display_name)
                         for driver in self.drivers}
+        self._driver_locks = {driver.key: threading.RLock() for driver in self.drivers}
+        disabled = set(disabled_drivers or [])
+        self._enabled = {driver.key: driver.key not in disabled for driver in self.drivers}
+        for driver in self.drivers:
+            if not self._enabled[driver.key]:
+                self._states[driver.key] = MonitorState(ConnectionState.DISABLED, device_key=driver.key,
+                                                        device_name=driver.display_name)
         self.on_change = on_change or (lambda _state: None)
         self.connection_interval = connection_interval
         self.battery_interval = battery_interval
@@ -97,37 +105,69 @@ class Monitor:
     def refresh_now(self) -> None:
         self._refresh.set()
 
+    def is_driver_enabled(self, key: str) -> bool:
+        with self._lock:
+            return self._enabled.get(key, False)
+
+    def set_driver_enabled(self, key: str, enabled: bool) -> None:
+        driver = next((item for item in self.drivers if item.key == key), None)
+        if driver is None:
+            return
+        with self._driver_locks[key]:
+            with self._lock:
+                if self._enabled[key] == enabled:
+                    return
+                self._enabled[key] = enabled
+                if enabled:
+                    state = MonitorState(device_key=key, device_name=driver.display_name)
+                    self._failures[key] = 0
+                    self._last_battery[key] = 0
+                else:
+                    driver.close()
+                    state = MonitorState(ConnectionState.DISABLED, device_key=key,
+                                         device_name=driver.display_name)
+                    self._failures[key] = 0
+                    self._last_battery[key] = 0
+        self._publish(driver, state)
+        if enabled:
+            self.refresh_now()
+
     def poll_once(self, force_details: bool = False) -> MonitorState:
         for driver in self.drivers:
-            previous = self._states[driver.key]
-            try:
-                connected = driver.read_connection()
-                self._failures[driver.key] = 0
-                if not connected:
-                    state = MonitorState(ConnectionState.DISCONNECTED, updated_at=time.time(),
-                                         device_key=driver.key, device_name=driver.display_name)
-                    self._last_battery[driver.key] = 0
-                else:
-                    battery, charging = previous.battery, previous.charging
-                    if force_details or previous.connection != ConnectionState.CONNECTED or time.monotonic() - self._last_battery[driver.key] >= self.battery_interval:
-                        battery, charging = driver.read_details()
-                        self._last_battery[driver.key] = time.monotonic()
-                    state = MonitorState(ConnectionState.CONNECTED, battery, charging, time.time(), driver.key, driver.display_name)
-                self._publish(driver, state)
-            except DeviceUnavailable:
-                driver.close()
-                self._last_battery[driver.key] = 0
-                self._publish(driver, MonitorState(ConnectionState.RECEIVER_UNAVAILABLE, updated_at=time.time(),
-                                                  device_key=driver.key, device_name=driver.display_name))
-            except (OSError, TimeoutError, ValueError) as exc:
-                self._failures[driver.key] += 1
-                failures = self._failures[driver.key]
-                log.debug("%s poll failed (%d): %s", driver.display_name, failures, exc)
-                if failures >= 2:
+            state = None
+            with self._driver_locks[driver.key]:
+                if not self.is_driver_enabled(driver.key):
+                    continue
+                previous = self._states[driver.key]
+                try:
+                    connected = driver.read_connection()
+                    self._failures[driver.key] = 0
+                    if not connected:
+                        state = MonitorState(ConnectionState.DISCONNECTED, updated_at=time.time(),
+                                             device_key=driver.key, device_name=driver.display_name)
+                        self._last_battery[driver.key] = 0
+                    else:
+                        battery, charging = previous.battery, previous.charging
+                        if force_details or previous.connection != ConnectionState.CONNECTED or time.monotonic() - self._last_battery[driver.key] >= self.battery_interval:
+                            battery, charging = driver.read_details()
+                            self._last_battery[driver.key] = time.monotonic()
+                        state = MonitorState(ConnectionState.CONNECTED, battery, charging, time.time(), driver.key, driver.display_name)
+                except DeviceUnavailable:
                     driver.close()
-                    # Keep the last successful snapshot visible while the device is
-                    # temporarily unreadable. Publishing UNKNOWN here discards the
-                    # useful connection and battery values and makes the tray flicker.
+                    self._last_battery[driver.key] = 0
+                    state = MonitorState(ConnectionState.RECEIVER_UNAVAILABLE, updated_at=time.time(),
+                                         device_key=driver.key, device_name=driver.display_name)
+                except (OSError, TimeoutError, ValueError) as exc:
+                    self._failures[driver.key] += 1
+                    failures = self._failures[driver.key]
+                    log.debug("%s poll failed (%d): %s", driver.display_name, failures, exc)
+                    if failures >= 2:
+                        driver.close()
+                        # Keep the last successful snapshot visible while the device is
+                        # temporarily unreadable. Publishing UNKNOWN here discards the
+                        # useful connection and battery values and makes the tray flicker.
+            if state is not None:
+                self._publish(driver, state)
         return self.state
 
     def start(self) -> None:

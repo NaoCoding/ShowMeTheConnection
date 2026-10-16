@@ -18,7 +18,13 @@ log = logging.getLogger(__name__)
 class TrayApp:
     def __init__(self, monitor: Monitor | None = None):
         self.settings = config.load_settings()
-        self.monitor = monitor or Monitor(on_change=self._state_changed)
+        self.monitor = monitor or Monitor(on_change=self._state_changed,
+                                          disabled_drivers=self.settings.get("disabled_drivers", []))
+        # Apply saved choices before the tray has initialized its locks and icon.
+        self.monitor.on_change = lambda _states: None
+        for state in self.monitor.states:
+            self.monitor.set_driver_enabled(state.device_key,
+                                            state.device_key not in self.settings.get("disabled_drivers", []))
         self.monitor.on_change = self._state_changed
         self._lock = threading.RLock()
         self._states = self.monitor.states
@@ -59,7 +65,21 @@ class TrayApp:
                 checked=lambda _item, device_key=key: device_key in self._icon_devices,
             ))
         visibility_menu = pystray.Menu(*visibility_items)
+        driver_items = []
+
+        def toggle_driver_action(device_key):
+            return lambda _icon, _item: self._toggle_driver(device_key)
+
+        for state in self._states:
+            key = state.device_key
+            driver_items.append(MenuItem(
+                state.device_name,
+                toggle_driver_action(key),
+                checked=lambda _item, device_key=key: self.monitor.is_driver_enabled(device_key),
+            ))
+        driver_menu = pystray.Menu(*driver_items)
         items.extend((
+            MenuItem("Drivers monitored", driver_menu),
             MenuItem("Devices shown on icon", visibility_menu),
             pystray.Menu.SEPARATOR,
             MenuItem("Refresh Now", lambda _icon, _item: self.monitor.refresh_now()),
@@ -101,7 +121,9 @@ class TrayApp:
             return "No devices selected on tray icon"
         summaries = []
         for state in states:
-            if state.battery is not None:
+            if state.connection == ConnectionState.DISABLED:
+                summary = f"{state.device_name}: monitoring disabled"
+            elif state.battery is not None:
                 summary = f"{state.device_name}: {state.battery}%"
                 if state.charging:
                     summary += " charging"
@@ -143,6 +165,24 @@ class TrayApp:
                     self._icon_devices = set(previous)
                     self.settings["icon_devices"] = previous
                 log.warning("Could not save tray icon device selection: %s", exc)
+            self._refresh_icon()
+
+    def _toggle_driver(self, key):
+        with self._lock:
+            previous = list(self.settings.get("disabled_drivers", []))
+            disabled = set(previous)
+            if self.monitor.is_driver_enabled(key):
+                disabled.add(key)
+            else:
+                disabled.discard(key)
+            self.settings["disabled_drivers"] = sorted(disabled)
+            self.monitor.set_driver_enabled(key, key not in disabled)
+            try:
+                config.save_settings(self.settings)
+            except OSError as exc:
+                self.settings["disabled_drivers"] = previous
+                self.monitor.set_driver_enabled(key, key not in previous)
+                log.warning("Could not save monitored driver selection: %s", exc)
             self._refresh_icon()
 
     def _status_label(self):

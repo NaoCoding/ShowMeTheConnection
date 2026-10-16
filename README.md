@@ -21,7 +21,7 @@ python -m pip install -r requirements.txt
 python run_tray.py
 ```
 
-The tray menu has informational status entries, **Refresh Now**, **Start with Windows**, and **Exit**. A one-shot hardware check prints the current state:
+The tray menu has informational status entries, **Drivers monitored**, **Devices shown on icon**, **Refresh Now**, **Start with Windows**, and **Exit**. Use **Drivers monitored** to enable or disable tracking for each supported device. Disabled drivers are not polled, and the selection is saved in the user settings. A one-shot hardware check prints the current state:
 
 ```powershell
 python run_tray.py --once
@@ -49,7 +49,7 @@ Choose **Start with Windows** in the tray menu to add or remove a per-user `HKCU
 
 The app checks device connection about every four seconds and refreshes battery and charging about every 60 seconds. The Barracuda X integration uses only the documented PA reads for registers `20`, `21`, and `2A`, plus the verified Remote Mode toggle. The KZZI integration follows the read-only identity, online, and power requests identified in the bundled KZZI driver. Battery details are cleared after a confirmed disconnect. Transient communication failures keep the last known status visible while the monitor retries. Low battery notifications are omitted to keep dependencies and notification behavior simple.
 
-For multiple devices, hovering over the tray icon shows the selected device names and battery percentages. The right-click menu shows a percentage in each device's row and has a **Devices shown on icon** submenu for choosing which devices appear in the icon and tooltip. All registered devices continue to be monitored; this setting only changes the tray summary.
+For multiple devices, hovering over the tray icon shows the selected device names and battery percentages. The right-click menu shows a percentage in each device's row. **Devices shown on icon** chooses which enabled devices appear in the icon and tooltip, while **Drivers monitored** controls which devices are tracked.
 
 ## Adding another device
 

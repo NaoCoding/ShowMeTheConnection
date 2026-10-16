@@ -7,6 +7,7 @@ import ctypes
 import logging
 import sys
 
+import config
 from monitor import ConnectionState, Monitor
 
 
@@ -18,7 +19,8 @@ def main() -> int:
     logging.basicConfig(level=logging.DEBUG if args.debug else logging.WARNING,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     if args.once:
-        monitor = Monitor()
+        settings = config.load_settings()
+        monitor = Monitor(disabled_drivers=settings.get("disabled_drivers", []))
         try:
             monitor.poll_once(force_details=True)
             states = monitor.states
